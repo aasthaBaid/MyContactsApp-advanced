@@ -189,8 +189,9 @@ public class Main {
             System.out.println("1. Create Contact");
             System.out.println("2. View All Contacts");
             System.out.println("3. View Contact Details");
-            System.out.println("4. Edit Contact"); // new option
-            System.out.println("5. Back");
+            System.out.println("4. Edit Contact");
+            System.out.println("5. Delete Contact"); // new option
+            System.out.println("6. Back");
             System.out.print("Choose an option: ");
             String choice = sc.nextLine();
 
@@ -198,10 +199,46 @@ public class Main {
                 case "1": createContact(sc); break;
                 case "2": viewContacts(); break;
                 case "3": viewContactDetails(sc); break;
-                case "4": editContact(sc); break; // call new method
-                case "5": managing = false; break;
+                case "4": editContact(sc); break;
+                case "5": deleteContact(sc); break; // call new method
+                case "6": managing = false; break;
                 default: System.out.println("Invalid choice.");
             }
+        }
+    }
+
+    // Method to delete a contact
+    private static void deleteContact(Scanner sc) {
+        System.out.print("Enter contact name to delete: ");
+        String name = sc.nextLine();
+
+        Optional<Contact> match = contacts.stream()
+                .filter(c -> c.getName().equalsIgnoreCase(name))
+                .findFirst();
+
+        if(match.isPresent()) {
+            Contact contact = match.get();
+
+            // Confirmation dialog
+            System.out.print("Are you sure you want to delete " + contact.getName() + "? (y/n): ");
+            String confirm = sc.nextLine();
+
+            if(confirm.equalsIgnoreCase("y")) {
+                // Execute delete command
+                DeleteContactCommand cmd = new DeleteContactCommand(contact);
+                cmd.execute(contacts);
+
+                // Notify observers (if any)
+                // Example: log deletion
+                System.out.println("Contact deleted: " + contact);
+
+                // Persist changes
+                FilePersistence.saveContacts(contacts);
+            } else {
+                System.out.println("Deletion cancelled.");
+            }
+        } else {
+            System.out.println("No contact found with name: " + name);
         }
     }
 
