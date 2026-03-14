@@ -6,6 +6,8 @@ import com.model.*;
 import com.factory.UserFactory;
 import com.contact.*;
 
+// save and load text files.
+
 public class FilePersistence {
     private static final String USER_FILE = "users.txt";
     private static final String CONTACT_FILE = "contacts.txt";

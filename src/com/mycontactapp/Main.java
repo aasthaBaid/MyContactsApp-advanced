@@ -187,8 +187,9 @@ public class Main {
         while(managing) {
             System.out.println("\n=== Contact Management ===");
             System.out.println("1. Create Contact");
-            System.out.println("2. View Contacts");
-            System.out.println("3. Back");
+            System.out.println("2. View All Contacts");
+            System.out.println("3. View Contact Details");
+            System.out.println("4. Back");
             System.out.print("Choose an option: ");
             String choice = sc.nextLine();
 
@@ -200,11 +201,31 @@ public class Main {
                     viewContacts();
                     break;
                 case "3":
+                    viewContactDetails(sc);
+                    break;
+                case "4":
                     managing = false;
                     break;
                 default:
                     System.out.println("Invalid choice.");
             }
+        }
+    }
+
+    private static void viewContactDetails(Scanner sc) {
+        System.out.print("Enter contact name to view details: ");
+        String name = sc.nextLine();
+
+        Optional<Contact> match = contacts.stream()
+                .filter(c -> c.getName().equalsIgnoreCase(name))
+                .findFirst();
+
+        if(match.isPresent()) {
+            ContactView view = new ContactView(match.get());
+            ContactFormatter formatter = new ContactFormatter(view);
+            System.out.println(formatter.format());
+        } else {
+            System.out.println("No contact found with name: " + name);
         }
     }
 

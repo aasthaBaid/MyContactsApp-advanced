@@ -25,7 +25,20 @@ public abstract class Contact {
     public List<Email> getEmails() { return emails; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 
-    @Override
+    
+    public void setName(String name) {
+		this.name = name;
+	}
+
+	public void setPhoneNumbers(List<PhoneNumber> phoneNumbers) {
+		this.phoneNumbers = phoneNumbers;
+	}
+
+	public void setEmails(List<Email> emails) {
+		this.emails = emails;
+	}
+
+	@Override
     public String toString() {
         return "Contact [id=" + id + ", name=" + name + ", phones=" + phoneNumbers + ", emails=" + emails + "]";
     }
