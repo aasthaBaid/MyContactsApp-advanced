@@ -96,10 +96,57 @@ public class Main {
         if(loggedIn.isPresent()) {
             SessionManager.getInstance().login(loggedIn.get());
             System.out.println("Welcome, " + loggedIn.get().getName() + "!");
+
+            // Show profile management menu
+            profileMenu(sc, loggedIn.get());
+
         } else {
             System.out.println("Login failed. Invalid credentials.");
         }
     }
+
+    private static void profileMenu(Scanner sc, User user) {
+        boolean managing = true;
+        while(managing) {
+            System.out.println("\n=== Profile Management ===");
+            System.out.println("1. Change Name");
+            System.out.println("2. Change Phone Number");
+            System.out.println("3. Change Password");
+            System.out.println("4. Change Preferences");
+            System.out.println("5. Back to Main Menu");
+            System.out.print("Choose an option: ");
+            String choice = sc.nextLine();
+
+            switch(choice) {
+                case "1":
+                    System.out.print("Enter new name: ");
+                    String newName = sc.nextLine();
+                    new com.profile.ChangeNameCommand(newName).execute(user);
+                    break;
+                case "2":
+                    System.out.print("Enter new phone number: ");
+                    String newPhone = sc.nextLine();
+                    new com.profile.ChangePhoneCommand(newPhone).execute(user);
+                    break;
+                case "3":
+                    System.out.print("Enter new password: ");
+                    String newPass = sc.nextLine();
+                    new com.profile.ChangePasswordCommand(newPass).execute(user);
+                    break;
+                case "4":
+                    System.out.print("Enter new preferences: ");
+                    String prefs = sc.nextLine();
+                    new com.profile.ChangePreferencesCommand(prefs).execute(user);
+                    break;
+                case "5":
+                    managing = false;
+                    break;
+                default:
+                    System.out.println("Invalid choice.");
+            }
+        }
+    }
+
 
     // === Persistence Methods ===
     private static void saveUsers() {
