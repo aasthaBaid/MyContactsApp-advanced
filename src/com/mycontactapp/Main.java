@@ -182,6 +182,7 @@ public class Main {
     }
 
     // === Contact Management ===
+ // Contact menu with bulk operations
     private static void contactMenu(Scanner sc) {
         boolean managing = true;
         while(managing) {
@@ -190,8 +191,9 @@ public class Main {
             System.out.println("2. View All Contacts");
             System.out.println("3. View Contact Details");
             System.out.println("4. Edit Contact");
-            System.out.println("5. Delete Contact"); // new option
-            System.out.println("6. Back");
+            System.out.println("5. Delete Contact");
+            System.out.println("6. Bulk Operations"); // new option
+            System.out.println("7. Back");
             System.out.print("Choose an option: ");
             String choice = sc.nextLine();
 
@@ -200,12 +202,54 @@ public class Main {
                 case "2": viewContacts(); break;
                 case "3": viewContactDetails(sc); break;
                 case "4": editContact(sc); break;
-                case "5": deleteContact(sc); break; // call new method
-                case "6": managing = false; break;
+                case "5": deleteContact(sc); break;
+                case "6": bulkOperations(sc); break; // call new method
+                case "7": managing = false; break;
                 default: System.out.println("Invalid choice.");
             }
         }
     }
+
+    // Bulk operations method
+    private static void bulkOperations(Scanner sc) {
+        System.out.println("\n=== Bulk Operations ===");
+        System.out.print("Enter keyword to filter contacts (e.g., 'gmail'): ");
+        String keyword = sc.nextLine();
+
+        // Filter contacts using Streams API + lambda
+        List<Contact> selected = contacts.stream()
+                .filter(c -> c.getEmails().toString().contains(keyword))
+                .toList();
+
+        if(selected.isEmpty()) {
+            System.out.println("No contacts match filter.");
+            return;
+        }
+
+        // Wrap in ContactGroup (Composite)
+        ContactGroup group = new ContactGroup(selected);
+
+        System.out.println("Bulk actions:");
+        System.out.println("1. Delete all");
+        System.out.println("2. Export all");
+        System.out.print("Choose: ");
+        String choice = sc.nextLine();
+
+        switch(choice) {
+            case "1":
+                group.deleteAll(contacts); // delete selected contacts
+                FilePersistence.saveContacts(contacts); // persist changes
+                System.out.println("Deleted " + selected.size() + " contacts.");
+                break;
+            case "2":
+                String exportData = group.exportAll(); // export selected contacts
+                System.out.println("Exported contacts:\n" + exportData);
+                break;
+            default:
+                System.out.println("Invalid choice.");
+        }
+    }
+
 
     // Method to delete a contact
     private static void deleteContact(Scanner sc) {
