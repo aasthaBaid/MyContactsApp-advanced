@@ -1,20 +1,24 @@
 package com.mycontactapp;
 
-import java.io.*;
 import java.util.*;
 import com.model.*;
 import com.factory.UserFactory;
 import com.auth.*;
 import com.session.SessionManager;
+import com.profile.*;
+import com.contact.*;
+import com.persistence.FilePersistence;
 
 public class Main {
     private static Map<String, User> userStore = new HashMap<>();
-    private static final String FILE_NAME = "users.txt";
-
+    private static List<Contact> contacts = new ArrayList<>();
 
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
-        loadUsers(); // load users at startup
+
+        // Load persisted data
+        userStore = FilePersistence.loadUsers();
+        contacts = FilePersistence.loadContacts();
 
         boolean running = true;
         while(running) {
@@ -33,7 +37,8 @@ public class Main {
                     loginUser(sc);
                     break;
                 case "3":
-                    saveUsers(); // save before exit
+                    FilePersistence.saveUsers(userStore);
+                    FilePersistence.saveContacts(contacts);
                     running = false;
                     System.out.println("Exiting MyContacts. Goodbye!");
                     break;
@@ -44,6 +49,7 @@ public class Main {
         sc.close();
     }
 
+    // === Registration ===
     private static void registerUser(Scanner sc) {
         try {
             System.out.println("\n=== User Registration ===");
@@ -77,12 +83,14 @@ public class Main {
             User user = UserFactory.createUser(type, builder);
             userStore.put(user.getEmail(), user);
             System.out.println("Registration successful: " + user);
-            saveUsers();
+
+            FilePersistence.saveUsers(userStore); // persist immediately
         } catch(Exception e) {
             System.out.println("Error: " + e.getMessage());
         }
     }
 
+    // === Login ===
     private static void loginUser(Scanner sc) {
         System.out.println("\n=== User Login ===");
         System.out.print("Enter email: ");
@@ -97,48 +105,34 @@ public class Main {
             SessionManager.getInstance().login(loggedIn.get());
             System.out.println("Welcome, " + loggedIn.get().getName() + "!");
 
-            // Show profile management menu
-            profileMenu(sc, loggedIn.get());
+            // Show submenu
+            userSubMenu(sc, loggedIn.get());
 
         } else {
             System.out.println("Login failed. Invalid credentials.");
         }
     }
 
-    private static void profileMenu(Scanner sc, User user) {
+    // === User Submenu (Profile + Contacts) ===
+    private static void userSubMenu(Scanner sc, User user) {
         boolean managing = true;
         while(managing) {
-            System.out.println("\n=== Profile Management ===");
-            System.out.println("1. Change Name");
-            System.out.println("2. Change Phone Number");
-            System.out.println("3. Change Password");
-            System.out.println("4. Change Preferences");
-            System.out.println("5. Back to Main Menu");
+            System.out.println("\n=== User Menu ===");
+            System.out.println("1. Profile Management");
+            System.out.println("2. Contact Management");
+            System.out.println("3. Logout");
             System.out.print("Choose an option: ");
             String choice = sc.nextLine();
 
             switch(choice) {
                 case "1":
-                    System.out.print("Enter new name: ");
-                    String newName = sc.nextLine();
-                    new com.profile.ChangeNameCommand(newName).execute(user);
+                    profileMenu(sc, user);
                     break;
                 case "2":
-                    System.out.print("Enter new phone number: ");
-                    String newPhone = sc.nextLine();
-                    new com.profile.ChangePhoneCommand(newPhone).execute(user);
+                    contactMenu(sc);
                     break;
                 case "3":
-                    System.out.print("Enter new password: ");
-                    String newPass = sc.nextLine();
-                    new com.profile.ChangePasswordCommand(newPass).execute(user);
-                    break;
-                case "4":
-                    System.out.print("Enter new preferences: ");
-                    String prefs = sc.nextLine();
-                    new com.profile.ChangePreferencesCommand(prefs).execute(user);
-                    break;
-                case "5":
+                    SessionManager.getInstance().logout();
                     managing = false;
                     break;
                 default:
@@ -147,55 +141,106 @@ public class Main {
         }
     }
 
+    // === Profile Management ===
+    private static void profileMenu(Scanner sc, User user) {
+        boolean managing = true;
+        while(managing) {
+            System.out.println("\n=== Profile Management ===");
+            System.out.println("1. Change Name");
+            System.out.println("2. Change Phone Number");
+            System.out.println("3. Change Password");
+            System.out.println("4. Change Preferences");
+            System.out.println("5. Back");
+            System.out.print("Choose an option: ");
+            String choice = sc.nextLine();
 
-    // === Persistence Methods ===
-    private static void saveUsers() {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(FILE_NAME))) {
-            for(User user : userStore.values()) {
-                if(user instanceof PremiumUser) {
-                    PremiumUser p = (PremiumUser) user;
-                    writer.write("premium," + user.getEmail() + "," + user.getPasswordHash() + "," +
-                                 user.getName() + "," + user.getPhoneNumber() + "," + p.getSubscriptionPlan());
-                } else {
-                    writer.write("free," + user.getEmail() + "," + user.getPasswordHash() + "," +
-                                 user.getName() + "," + user.getPhoneNumber());
-                }
-                writer.newLine();
+            switch(choice) {
+                case "1":
+                    System.out.print("Enter new name: ");
+                    new ChangeNameCommand(sc.nextLine()).execute(user);
+                    break;
+                case "2":
+                    System.out.print("Enter new phone number: ");
+                    new ChangePhoneCommand(sc.nextLine()).execute(user);
+                    break;
+                case "3":
+                    System.out.print("Enter new password: ");
+                    new ChangePasswordCommand(sc.nextLine()).execute(user);
+                    break;
+                case "4":
+                    System.out.print("Enter new preferences: ");
+                    new ChangePreferencesCommand(sc.nextLine()).execute(user);
+                    break;
+                case "5":
+                    managing = false;
+                    break;
+                default:
+                    System.out.println("Invalid choice.");
             }
-            System.out.println("Users saved to " + FILE_NAME);
-        } catch(IOException e) {
-            System.out.println("Error saving users: " + e.getMessage());
+            FilePersistence.saveUsers(userStore); // persist changes immediately
         }
     }
 
-    private static void loadUsers() {
-        File file = new File(FILE_NAME);
-        if(!file.exists()) return;
+    // === Contact Management ===
+    private static void contactMenu(Scanner sc) {
+        boolean managing = true;
+        while(managing) {
+            System.out.println("\n=== Contact Management ===");
+            System.out.println("1. Create Contact");
+            System.out.println("2. View Contacts");
+            System.out.println("3. Back");
+            System.out.print("Choose an option: ");
+            String choice = sc.nextLine();
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(FILE_NAME))) {
-            String line;
-            while((line = reader.readLine()) != null) {
-                String[] parts = line.split(",");
-                String type = parts[0];
-                UserBuilder builder = new UserBuilder()
-                        .setEmail(parts[1])
-                        .setName(parts[3])
-                        .setPhoneNumber(parts[4]);
-
-                // Inject stored password hash directly
-                java.lang.reflect.Field f = UserBuilder.class.getDeclaredField("passwordHash");
-                f.setAccessible(true);
-                f.set(builder, parts[2]);
-
-                if(type.equalsIgnoreCase("premium")) {
-                    builder.setSubscriptionPlan(parts[5]);
-                }
-                User user = UserFactory.createUser(type, builder);
-                userStore.put(user.getEmail(), user);
+            switch(choice) {
+                case "1":
+                    createContact(sc);
+                    break;
+                case "2":
+                    viewContacts();
+                    break;
+                case "3":
+                    managing = false;
+                    break;
+                default:
+                    System.out.println("Invalid choice.");
             }
-            System.out.println("Users loaded from " + FILE_NAME);
-        } catch(Exception e) {
-            System.out.println("Error loading users: " + e.getMessage());
+        }
+    }
+
+    private static void createContact(Scanner sc) {
+        System.out.println("\n=== Create Contact ===");
+        System.out.print("Enter contact type (person/organization): ");
+        String type = sc.nextLine();
+
+        ContactBuilder builder = new ContactBuilder();
+        System.out.print("Enter name: ");
+        builder.setName(sc.nextLine());
+
+        System.out.print("Enter phone number (or blank to skip): ");
+        String phone = sc.nextLine();
+        if(!phone.isEmpty()) builder.addPhoneNumber(phone);
+
+        System.out.print("Enter email (or blank to skip): ");
+        String email = sc.nextLine();
+        if(!email.isEmpty()) builder.addEmail(email);
+
+        if(type.equalsIgnoreCase("organization")) {
+            System.out.print("Enter organization name: ");
+            builder.setOrganizationName(sc.nextLine());
+        }
+
+        Contact contact = ContactFactory.createContact(type, builder);
+        contacts.add(contact);
+        System.out.println("Contact created: " + contact);
+
+        FilePersistence.saveContacts(contacts); // persist immediately
+    }
+
+    private static void viewContacts() {
+        System.out.println("\n=== All Contacts ===");
+        for(Contact c : contacts) {
+            System.out.println(c);
         }
     }
 }
