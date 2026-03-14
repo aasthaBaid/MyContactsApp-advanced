@@ -3,6 +3,7 @@ package com.model;
 public class PremiumUser extends User {
     private String subscriptionPlan;
 
+    // premium user
     public PremiumUser(UserBuilder builder) {
         super(builder);
         this.subscriptionPlan = builder.getSubscriptionPlan();
