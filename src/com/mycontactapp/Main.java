@@ -189,28 +189,68 @@ public class Main {
             System.out.println("1. Create Contact");
             System.out.println("2. View All Contacts");
             System.out.println("3. View Contact Details");
-            System.out.println("4. Back");
+            System.out.println("4. Edit Contact"); // new option
+            System.out.println("5. Back");
             System.out.print("Choose an option: ");
             String choice = sc.nextLine();
 
             switch(choice) {
-                case "1":
-                    createContact(sc);
-                    break;
-                case "2":
-                    viewContacts();
-                    break;
-                case "3":
-                    viewContactDetails(sc);
-                    break;
-                case "4":
-                    managing = false;
-                    break;
-                default:
-                    System.out.println("Invalid choice.");
+                case "1": createContact(sc); break;
+                case "2": viewContacts(); break;
+                case "3": viewContactDetails(sc); break;
+                case "4": editContact(sc); break; // call new method
+                case "5": managing = false; break;
+                default: System.out.println("Invalid choice.");
             }
         }
     }
+
+    private static void editContact(Scanner sc) {
+        System.out.print("Enter contact name to edit: ");
+        String name = sc.nextLine();
+
+        Optional<Contact> match = contacts.stream()
+                .filter(c -> c.getName().equalsIgnoreCase(name))
+                .findFirst();
+
+        if(match.isPresent()) {
+            Contact contact = match.get();
+
+            System.out.println("Editing " + contact.getName());
+            System.out.println("1. Change Name");
+            System.out.println("2. Change Phone");
+            System.out.println("3. Change Email");
+            System.out.print("Choose field: ");
+            String choice = sc.nextLine();
+
+            try {
+                ContactMemento oldState = null;
+                switch(choice) {
+                    case "1":
+                        System.out.print("Enter new name: ");
+                        String newName = sc.nextLine();
+                        oldState = new EditNameCommand(newName).execute(contact);
+                        break;
+                    // Similarly implement EditPhoneCommand, EditEmailCommand
+                }
+                System.out.println("Contact updated: " + contact);
+                FilePersistence.saveContacts(contacts); // persist immediately
+
+                // Optionally allow undo
+                System.out.print("Undo change? (y/n): ");
+                if(sc.nextLine().equalsIgnoreCase("y") && oldState != null) {
+                    oldState.restore(contact);
+                    System.out.println("Undo complete. Contact restored: " + contact);
+                    FilePersistence.saveContacts(contacts);
+                }
+            } catch(Exception e) {
+                System.out.println("Error editing contact: " + e.getMessage());
+            }
+        } else {
+            System.out.println("No contact found with name: " + name);
+        }
+    }
+
 
     private static void viewContactDetails(Scanner sc) {
         System.out.print("Enter contact name to view details: ");
