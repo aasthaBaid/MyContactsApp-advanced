@@ -6,6 +6,8 @@ import com.model.*;
 import com.factory.UserFactory;
 import com.auth.*;
 import com.session.SessionManager;
+import com.tag.Tag;
+import com.tag.TagFactory;
 import com.profile.*;
 import com.search.*;
 import com.contact.*;
@@ -197,7 +199,8 @@ public class Main {
 			System.out.println("6. Bulk Operations"); // new option
 			System.out.println("7. Search Contacts");
 			System.out.println("8. Advanced Filtering");
-			System.out.println("9. Back");
+			System.out.println("9. Manage Tags");
+			System.out.println("10. Back");
 			System.out.print("Choose an option: ");
 			String choice = sc.nextLine();
 
@@ -210,13 +213,125 @@ public class Main {
 			case "6": bulkOperations(sc); break; // call new method
 			case "7": searchContacts(sc); break;
 			case "8": advancedFiltering(sc); break;
-			case "9": managing = false; break; 
+			case "9": tagMenu(sc); break;
+			case "10": managing = false; break; 
+
 			default: System.out.println("Invalid choice.");
 			}
 		}
 	}
 
 
+
+	private static void tagMenu(Scanner sc) {
+		boolean managing = true;
+
+		while(managing) {
+			System.out.println("\n=== Tag Management ===");
+			System.out.println("1. Create Tag");
+			System.out.println("2. Assign Tag to Contact");
+			System.out.println("3. Remove Tag from Contact");
+			System.out.println("4. View Contact Tags");
+			System.out.println("5. Back");
+			System.out.print("Choose: ");
+			String choice = sc.nextLine();
+
+			switch(choice) {
+			case "1": createTag(sc); break;
+			case "2": assignTag(sc); break;
+			case "3": removeTag(sc); break;
+			case "4": viewContactTags(sc); break;
+			case "5": managing = false; break;
+			default: System.out.println("Invalid choice.");
+			}
+		}
+	}
+
+
+	private static void viewContactTags(Scanner sc) {
+		System.out.print("Contact name: ");
+		String name = sc.nextLine();
+
+		Optional<Contact> match = contacts.stream()
+				.filter(c -> c.getName().equalsIgnoreCase(name))
+				.findFirst();
+
+		if(match.isEmpty()) {
+			System.out.println("Contact not found.");
+			return;
+		}
+
+		Contact contact = match.get();
+
+		System.out.println("Tags: " + contact.getTags());
+	}
+
+	private static void createTag(Scanner sc) {
+		System.out.print("Enter tag name: ");
+		String name = sc.nextLine();
+
+		try {
+			Tag t = TagFactory.getTag(name);
+			System.out.println("Tag created: " + t);
+		} catch(Exception e) {
+			System.out.println("Error: " + e.getMessage());
+		}
+	}
+
+	private static void assignTag(Scanner sc) {
+		System.out.print("Contact name: ");
+		String name = sc.nextLine();
+
+		Optional<Contact> match = contacts.stream()
+				.filter(c -> c.getName().equalsIgnoreCase(name))
+				.findFirst();
+
+		if(match.isEmpty()) {
+			System.out.println("Contact not found.");
+			return;
+		}
+
+		Contact contact = match.get();
+
+		System.out.print("Enter tag: ");
+		String tagName = sc.nextLine();
+
+		Tag t = TagFactory.getTag(tagName);
+		contact.addTag(t);
+
+		FilePersistence.saveContacts(contacts);
+
+		System.out.println("Tag assigned: " + t);
+	}
+
+	private static void removeTag(Scanner sc) {
+		System.out.print("Contact name: ");
+		String name = sc.nextLine();
+
+		Optional<Contact> match = contacts.stream()
+				.filter(c -> c.getName().equalsIgnoreCase(name))
+				.findFirst();
+
+		if(match.isEmpty()) {
+			System.out.println("Contact not found.");
+			return;
+		}
+
+		Contact contact = match.get();
+
+		System.out.print("Enter tag name to remove: ");
+		String tagName = sc.nextLine();
+
+		Tag t = TagFactory.getTag(tagName);
+
+		if(contact.getTags().contains(t)) {
+			contact.removeTag(t);
+			FilePersistence.saveContacts(contacts);
+			System.out.println("Tag removed.");
+		} else {
+			System.out.println("Contact does not have this tag.");
+		}
+	}
 
 	private static void advancedFiltering(Scanner sc) {
 

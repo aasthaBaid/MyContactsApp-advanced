@@ -4,6 +4,8 @@ package com.contact;
 import java.time.LocalDateTime;
 import java.util.*;
 
+import com.tag.Tag;
+
 public abstract class Contact {
 	private UUID id;
 	private String name;
@@ -44,8 +46,20 @@ public abstract class Contact {
 		this.emails = emails;
 	}
 
-	@Override
-	public String toString() {
-		return "Contact [id=" + id + ", name=" + name + ", phones=" + phoneNumbers + ", emails=" + emails + "]";
+
+	private Set<Tag> tags = new HashSet<>();
+
+	public Set<Tag> getTags() { return tags; }
+
+	public void addTag(Tag t) {
+		tags.add(t);
 	}
-}
+
+	public void removeTag(Tag t) {
+		tags.remove(t);
+	}
+		@Override
+		public String toString() {
+			return "Contact [id=" + id + ", name=" + name + ", phones=" + phoneNumbers + ", emails=" + emails + "]";
+		}
+	}
