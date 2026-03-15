@@ -1,11 +1,13 @@
 package com.mycontactapp;
 
 import java.util.*;
+
 import com.model.*;
 import com.factory.UserFactory;
 import com.auth.*;
 import com.session.SessionManager;
 import com.profile.*;
+import com.search.*;
 import com.contact.*;
 import com.persistence.FilePersistence;
 
@@ -193,7 +195,8 @@ public class Main {
             System.out.println("4. Edit Contact");
             System.out.println("5. Delete Contact");
             System.out.println("6. Bulk Operations"); // new option
-            System.out.println("7. Back");
+            System.out.println("7. Search Contacts");
+            System.out.println("8. Back");
             System.out.print("Choose an option: ");
             String choice = sc.nextLine();
 
@@ -204,11 +207,58 @@ public class Main {
                 case "4": editContact(sc); break;
                 case "5": deleteContact(sc); break;
                 case "6": bulkOperations(sc); break; // call new method
-                case "7": managing = false; break;
+                case "7": searchContacts(sc); break;
+                case "8": managing = false; break;
+                
                 default: System.out.println("Invalid choice.");
             }
         }
     }
+
+
+private static void searchContacts(Scanner sc) {
+    System.out.println("\n=== Search Contacts ===");
+    System.out.print("Enter name keyword (or blank): ");
+    String nameKey = sc.nextLine();
+
+    System.out.print("Enter phone keyword (or blank): ");
+    String phoneKey = sc.nextLine();
+
+    System.out.print("Enter email keyword (or blank): ");
+    String emailKey = sc.nextLine();
+
+    FilterHandler chain = null;
+    FilterHandler head = null;
+
+    if(!nameKey.isEmpty()) {
+        head = new SearchFilter(new NameCriteria(nameKey));
+        chain = head;
+    }
+    if(!phoneKey.isEmpty()) {
+        FilterHandler f = new SearchFilter(new PhoneCriteria(phoneKey));
+        if(head == null) head = f;
+        else chain = chain.setNext(f);
+    }
+    if(!emailKey.isEmpty()) {
+        FilterHandler f = new SearchFilter(new EmailCriteria(emailKey));
+        if(head == null) head = f;
+        else chain = chain.setNext(f);
+    }
+
+    if(head == null) {
+        System.out.println("No filters applied.");
+        return;
+    }
+
+    List<Contact> results = head.filter(contacts);
+
+    System.out.println("\n=== Search Results ===");
+    if(results.isEmpty()) {
+        System.out.println("No matching contacts found.");
+    } else {
+        results.forEach(System.out::println);
+    }
+}
 
     // Bulk operations method
     private static void bulkOperations(Scanner sc) {

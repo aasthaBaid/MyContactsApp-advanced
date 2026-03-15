@@ -10,6 +10,12 @@ public class PhoneNumber {
         this.number = number;
     }
 
-    @Override
+    
+    public String getNumber() {
+		return number;
+	}
+
+
+	@Override
     public String toString() { return number; }
 }
