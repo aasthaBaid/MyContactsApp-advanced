@@ -1,3 +1,4 @@
+
 package com.mycontactapp;
 
 import java.util.*;
@@ -14,580 +15,447 @@ import com.contact.*;
 import com.persistence.FilePersistence;
 
 public class Main {
-	private static Map<String, User> userStore = new HashMap<>();
-	private static List<Contact> contacts = new ArrayList<>();
-
-	public static void main(String[] args) {
-		Scanner sc = new Scanner(System.in);
-
-		// Load persisted data
-		userStore = FilePersistence.loadUsers();
-		contacts = FilePersistence.loadContacts();
-
-		boolean running = true;
-		while(running) {
-			System.out.println("\n=== MyContacts Menu ===");
-			System.out.println("1. Register");
-			System.out.println("2. Login");
-			System.out.println("3. Exit");
-			System.out.print("Choose an option: ");
-			String choice = sc.nextLine();
-
-			switch(choice) {
-			case "1":
-				registerUser(sc);
-				break;
-			case "2":
-				loginUser(sc);
-				break;
-			case "3":
-				FilePersistence.saveUsers(userStore);
-				FilePersistence.saveContacts(contacts);
-				running = false;
-				System.out.println("Exiting MyContacts. Goodbye!");
-				break;
-			default:
-				System.out.println("Invalid choice. Try again.");
-			}
-		}
-		sc.close();
-	}
-
-	// === Registration ===
-	private static void registerUser(Scanner sc) {
-		try {
-			System.out.println("\n=== User Registration ===");
-			System.out.print("Enter email: ");
-			String email = sc.nextLine();
-
-			System.out.print("Enter password: ");
-			String password = sc.nextLine();
-
-			System.out.print("Enter name: ");
-			String name = sc.nextLine();
-
-			System.out.print("Enter phone number: ");
-			String phone = sc.nextLine();
-
-			System.out.print("Enter user type (free/premium): ");
-			String type = sc.nextLine();
-
-			UserBuilder builder = new UserBuilder()
-					.setEmail(email)
-					.setPassword(password)
-					.setName(name)
-					.setPhoneNumber(phone);
-
-			if(type.equalsIgnoreCase("premium")) {
-				System.out.print("Enter subscription plan: ");
-				String plan = sc.nextLine();
-				builder.setSubscriptionPlan(plan);
-			}
-
-			User user = UserFactory.createUser(type, builder);
-			userStore.put(user.getEmail(), user);
-			System.out.println("Registration successful: " + user);
-
-			FilePersistence.saveUsers(userStore); // persist immediately
-		} catch(Exception e) {
-			System.out.println("Error: " + e.getMessage());
-		}
-	}
-
-	// === Login ===
-	private static void loginUser(Scanner sc) {
-		System.out.println("\n=== User Login ===");
-		System.out.print("Enter email: ");
-		String loginEmail = sc.nextLine();
-		System.out.print("Enter password: ");
-		String loginPassword = sc.nextLine();
-
-		AuthenticationStrategy auth = new BasicAuth(userStore);
-		Optional<User> loggedIn = auth.authenticate(loginEmail, loginPassword);
-
-		if(loggedIn.isPresent()) {
-			SessionManager.getInstance().login(loggedIn.get());
-			System.out.println("Welcome, " + loggedIn.get().getName() + "!");
-
-			// Show submenu
-			userSubMenu(sc, loggedIn.get());
-
-		} else {
-			System.out.println("Login failed. Invalid credentials.");
-		}
-	}
-
-	// === User Submenu (Profile + Contacts) ===
-	private static void userSubMenu(Scanner sc, User user) {
-		boolean managing = true;
-		while(managing) {
-			System.out.println("\n=== User Menu ===");
-			System.out.println("1. Profile Management");
-			System.out.println("2. Contact Management");
-			System.out.println("3. Logout");
-			System.out.print("Choose an option: ");
-			String choice = sc.nextLine();
-
-			switch(choice) {
-			case "1":
-				profileMenu(sc, user);
-				break;
-			case "2":
-				contactMenu(sc);
-				break;
-			case "3":
-				SessionManager.getInstance().logout();
-				managing = false;
-				break;
-			default:
-				System.out.println("Invalid choice.");
-			}
-		}
-	}
-
-	// === Profile Management ===
-	private static void profileMenu(Scanner sc, User user) {
-		boolean managing = true;
-		while(managing) {
-			System.out.println("\n=== Profile Management ===");
-			System.out.println("1. Change Name");
-			System.out.println("2. Change Phone Number");
-			System.out.println("3. Change Password");
-			System.out.println("4. Change Preferences");
-			System.out.println("5. Back");
-			System.out.print("Choose an option: ");
-			String choice = sc.nextLine();
-
-			switch(choice) {
-			case "1":
-				System.out.print("Enter new name: ");
-				new ChangeNameCommand(sc.nextLine()).execute(user);
-				break;
-			case "2":
-				System.out.print("Enter new phone number: ");
-				new ChangePhoneCommand(sc.nextLine()).execute(user);
-				break;
-			case "3":
-				System.out.print("Enter new password: ");
-				new ChangePasswordCommand(sc.nextLine()).execute(user);
-				break;
-			case "4":
-				System.out.print("Enter new preferences: ");
-				new ChangePreferencesCommand(sc.nextLine()).execute(user);
-				break;
-			case "5":
-				managing = false;
-				break;
-			default:
-				System.out.println("Invalid choice.");
-			}
-			FilePersistence.saveUsers(userStore); // persist changes immediately
-		}
-	}
-
-	// === Contact Management ===
-	// Contact menu with bulk operations
-	private static void contactMenu(Scanner sc) {
-		boolean managing = true;
-		while(managing) {
-			System.out.println("\n=== Contact Management ===");
-			System.out.println("1. Create Contact");
-			System.out.println("2. View All Contacts");
-			System.out.println("3. View Contact Details");
-			System.out.println("4. Edit Contact");
-			System.out.println("5. Delete Contact");
-			System.out.println("6. Bulk Operations"); // new option
-			System.out.println("7. Search Contacts");
-			System.out.println("8. Advanced Filtering");
-			System.out.println("9. Manage Tags");
-			System.out.println("10. Back");
-			System.out.print("Choose an option: ");
-			String choice = sc.nextLine();
-
-			switch(choice) {
-			case "1": createContact(sc); break;
-			case "2": viewContacts(); break;
-			case "3": viewContactDetails(sc); break;
-			case "4": editContact(sc); break;
-			case "5": deleteContact(sc); break;
-			case "6": bulkOperations(sc); break; // call new method
-			case "7": searchContacts(sc); break;
-			case "8": advancedFiltering(sc); break;
-			case "9": tagMenu(sc); break;
-			case "10": managing = false; break; 
-
-			default: System.out.println("Invalid choice.");
-			}
-		}
-	}
-
-
-
-	private static void tagMenu(Scanner sc) {
-		boolean managing = true;
-
-		while(managing) {
-			System.out.println("\n=== Tag Management ===");
-			System.out.println("1. Create Tag");
-			System.out.println("2. Assign Tag to Contact");
-			System.out.println("3. Remove Tag from Contact");
-			System.out.println("4. View Contact Tags");
-			System.out.println("5. Back");
-			System.out.print("Choose: ");
-			String choice = sc.nextLine();
-
-			switch(choice) {
-			case "1": createTag(sc); break;
-			case "2": assignTag(sc); break;
-			case "3": removeTag(sc); break;
-			case "4": viewContactTags(sc); break;
-			case "5": managing = false; break;
-			default: System.out.println("Invalid choice.");
-			}
-		}
-	}
-
-
-	private static void viewContactTags(Scanner sc) {
-		System.out.print("Contact name: ");
-		String name = sc.nextLine();
-
-		Optional<Contact> match = contacts.stream()
-				.filter(c -> c.getName().equalsIgnoreCase(name))
-				.findFirst();
-
-		if(match.isEmpty()) {
-			System.out.println("Contact not found.");
-			return;
-		}
-
-		Contact contact = match.get();
-
-		System.out.println("Tags: " + contact.getTags());
-	}
-
-	private static void createTag(Scanner sc) {
-		System.out.print("Enter tag name: ");
-		String name = sc.nextLine();
-
-		try {
-			Tag t = TagFactory.getTag(name);
-			System.out.println("Tag created: " + t);
-		} catch(Exception e) {
-			System.out.println("Error: " + e.getMessage());
-		}
-	}
-
-	private static void assignTag(Scanner sc) {
-		System.out.print("Contact name: ");
-		String name = sc.nextLine();
-
-		Optional<Contact> match = contacts.stream()
-				.filter(c -> c.getName().equalsIgnoreCase(name))
-				.findFirst();
-
-		if(match.isEmpty()) {
-			System.out.println("Contact not found.");
-			return;
-		}
-
-		Contact contact = match.get();
-
-		System.out.print("Enter tag: ");
-		String tagName = sc.nextLine();
-
-		Tag t = TagFactory.getTag(tagName);
-		contact.addTag(t);
-
-		FilePersistence.saveContacts(contacts);
-
-		System.out.println("Tag assigned: " + t);
-	}
-
-	private static void removeTag(Scanner sc) {
-		System.out.print("Contact name: ");
-		String name = sc.nextLine();
-
-		Optional<Contact> match = contacts.stream()
-				.filter(c -> c.getName().equalsIgnoreCase(name))
-				.findFirst();
-
-		if(match.isEmpty()) {
-			System.out.println("Contact not found.");
-			return;
-		}
-
-		Contact contact = match.get();
-
-		System.out.print("Enter tag name to remove: ");
-		String tagName = sc.nextLine();
-
-		Tag t = TagFactory.getTag(tagName);
-
-		if(contact.getTags().contains(t)) {
-			contact.removeTag(t);
-			FilePersistence.saveContacts(contacts);
-			System.out.println("Tag removed.");
-		} else {
-			System.out.println("Contact does not have this tag.");
-		}
-	}
-
-	private static void advancedFiltering(Scanner sc) {
-
-		CompositeFilter filterGroup = new CompositeFilter();
-
-		System.out.println("\n=== Advanced Filtering ===");
-
-		// DATE RANGE FILTER
-		System.out.print("Start date (YYYY-MM-DD) or blank: ");
-		String startStr = sc.nextLine();
-
-		System.out.print("End date (YYYY-MM-DD) or blank: ");
-		String endStr = sc.nextLine();
-
-		if(!startStr.isEmpty() && !endStr.isEmpty()) {
-			filterGroup.addFilter(new DateFilter(
-					java.time.LocalDate.parse(startStr).atStartOfDay(),
-					java.time.LocalDate.parse(endStr).atTime(23, 59)
-					));
-		}
-
-		// FREQUENT FILTER
-		System.out.print("Show top N frequently contacted (or blank): ");
-		String limitStr = sc.nextLine();
-
-		if(!limitStr.isEmpty()) {
-			int limit = Integer.parseInt(limitStr);
-			filterGroup.addFilter(new FrequentFilter(limit));
-		}
-
-		// APPLY FILTERS
-		List<Contact> result = filterGroup.apply(contacts);
-
-		// DISPLAY
-		System.out.println("\n=== Filter Results ===");
-		if(result.isEmpty()) System.out.println("No contacts match filters.");
-		else result.forEach(System.out::println);
-	}
-
-	private static void searchContacts(Scanner sc) {
-		System.out.println("\n=== Search Contacts ===");
-		System.out.print("Enter name keyword (or blank): ");
-		String nameKey = sc.nextLine();
-
-		System.out.print("Enter phone keyword (or blank): ");
-		String phoneKey = sc.nextLine();
-
-		System.out.print("Enter email keyword (or blank): ");
-		String emailKey = sc.nextLine();
-
-		FilterHandler chain = null;
-		FilterHandler head = null;
-
-		if(!nameKey.isEmpty()) {
-			head = new SearchFilter(new NameCriteria(nameKey));
-			chain = head;
-		}
-		if(!phoneKey.isEmpty()) {
-			FilterHandler f = new SearchFilter(new PhoneCriteria(phoneKey));
-			if(head == null) head = f;
-			else chain = chain.setNext(f);
-		}
-		if(!emailKey.isEmpty()) {
-			FilterHandler f = new SearchFilter(new EmailCriteria(emailKey));
-			if(head == null) head = f;
-			else chain = chain.setNext(f);
-		}
-
-		if(head == null) {
-			System.out.println("No filters applied.");
-			return;
-		}
-
-		List<Contact> results = head.filter(contacts);
-
-		System.out.println("\n=== Search Results ===");
-		if(results.isEmpty()) {
-			System.out.println("No matching contacts found.");
-		} else {
-			results.forEach(System.out::println);
-		}
-	}
-
-	// Bulk operations method
-	private static void bulkOperations(Scanner sc) {
-		System.out.println("\n=== Bulk Operations ===");
-		System.out.print("Enter keyword to filter contacts (e.g., 'gmail'): ");
-		String keyword = sc.nextLine();
-
-		// Filter contacts using Streams API + lambda
-		List<Contact> selected = contacts.stream()
-				.filter(c -> c.getEmails().toString().contains(keyword))
-				.toList();
-
-		if(selected.isEmpty()) {
-			System.out.println("No contacts match filter.");
-			return;
-		}
-
-		// Wrap in ContactGroup (Composite)
-		ContactGroup group = new ContactGroup(selected);
-
-		System.out.println("Bulk actions:");
-		System.out.println("1. Delete all");
-		System.out.println("2. Export all");
-		System.out.print("Choose: ");
-		String choice = sc.nextLine();
-
-		switch(choice) {
-		case "1":
-			group.deleteAll(contacts); // delete selected contacts
-			FilePersistence.saveContacts(contacts); // persist changes
-			System.out.println("Deleted " + selected.size() + " contacts.");
-			break;
-		case "2":
-			String exportData = group.exportAll(); // export selected contacts
-			System.out.println("Exported contacts:\n" + exportData);
-			break;
-		default:
-			System.out.println("Invalid choice.");
-		}
-	}
-
-
-	// Method to delete a contact
-	private static void deleteContact(Scanner sc) {
-		System.out.print("Enter contact name to delete: ");
-		String name = sc.nextLine();
-
-		Optional<Contact> match = contacts.stream()
-				.filter(c -> c.getName().equalsIgnoreCase(name))
-				.findFirst();
-
-		if(match.isPresent()) {
-			Contact contact = match.get();
-
-			// Confirmation dialog
-			System.out.print("Are you sure you want to delete " + contact.getName() + "? (y/n): ");
-			String confirm = sc.nextLine();
-
-			if(confirm.equalsIgnoreCase("y")) {
-				// Execute delete command
-				DeleteContactCommand cmd = new DeleteContactCommand(contact);
-				cmd.execute(contacts);
-
-				// Notify observers (if any)
-				// Example: log deletion
-				System.out.println("Contact deleted: " + contact);
-
-				// Persist changes
-				FilePersistence.saveContacts(contacts);
-			} else {
-				System.out.println("Deletion cancelled.");
-			}
-		} else {
-			System.out.println("No contact found with name: " + name);
-		}
-	}
-
-	private static void editContact(Scanner sc) {
-		System.out.print("Enter contact name to edit: ");
-		String name = sc.nextLine();
-
-		Optional<Contact> match = contacts.stream()
-				.filter(c -> c.getName().equalsIgnoreCase(name))
-				.findFirst();
-
-		if(match.isPresent()) {
-			Contact contact = match.get();
-
-			System.out.println("Editing " + contact.getName());
-			System.out.println("1. Change Name");
-			System.out.println("2. Change Phone");
-			System.out.println("3. Change Email");
-			System.out.print("Choose field: ");
-			String choice = sc.nextLine();
-
-			try {
-				ContactMemento oldState = null;
-				switch(choice) {
-				case "1":
-					System.out.print("Enter new name: ");
-					String newName = sc.nextLine();
-					oldState = new EditNameCommand(newName).execute(contact);
-					break;
-					// Similarly implement EditPhoneCommand, EditEmailCommand
-				}
-				System.out.println("Contact updated: " + contact);
-				FilePersistence.saveContacts(contacts); // persist immediately
-
-				// Optionally allow undo
-				System.out.print("Undo change? (y/n): ");
-				if(sc.nextLine().equalsIgnoreCase("y") && oldState != null) {
-					oldState.restore(contact);
-					System.out.println("Undo complete. Contact restored: " + contact);
-					FilePersistence.saveContacts(contacts);
-				}
-			} catch(Exception e) {
-				System.out.println("Error editing contact: " + e.getMessage());
-			}
-		} else {
-			System.out.println("No contact found with name: " + name);
-		}
-	}
-
-
-	private static void viewContactDetails(Scanner sc) {
-		System.out.print("Enter contact name to view details: ");
-		String name = sc.nextLine();
-
-		Optional<Contact> match = contacts.stream()
-				.filter(c -> c.getName().equalsIgnoreCase(name))
-				.findFirst();
-
-		if(match.isPresent()) {
-			ContactView view = new ContactView(match.get());
-			ContactFormatter formatter = new ContactFormatter(view);
-			System.out.println(formatter.format());
-		} else {
-			System.out.println("No contact found with name: " + name);
-		}
-	}
-
-	private static void createContact(Scanner sc) {
-		System.out.println("\n=== Create Contact ===");
-		System.out.print("Enter contact type (person/organization): ");
-		String type = sc.nextLine();
-
-		ContactBuilder builder = new ContactBuilder();
-		System.out.print("Enter name: ");
-		builder.setName(sc.nextLine());
-
-		System.out.print("Enter phone number (or blank to skip): ");
-		String phone = sc.nextLine();
-		if(!phone.isEmpty()) builder.addPhoneNumber(phone);
-
-		System.out.print("Enter email (or blank to skip): ");
-		String email = sc.nextLine();
-		if(!email.isEmpty()) builder.addEmail(email);
-
-		if(type.equalsIgnoreCase("organization")) {
-			System.out.print("Enter organization name: ");
-			builder.setOrganizationName(sc.nextLine());
-		}
-
-		Contact contact = ContactFactory.createContact(type, builder);
-		contacts.add(contact);
-		System.out.println("Contact created: " + contact);
-
-		FilePersistence.saveContacts(contacts); // persist immediately
-	}
-
-	private static void viewContacts() {
-		System.out.println("\n=== All Contacts ===");
-		for(Contact c : contacts) {
-			System.out.println(c);
-		}
-	}
+
+    private static Map<String, User> userStore = new HashMap<>();
+    private static List<Contact> contacts = new ArrayList<>();
+
+    public static void main(String[] args) {
+
+        Scanner sc = new Scanner(System.in);
+
+        userStore = FilePersistence.loadUsers();
+        contacts = FilePersistence.loadContacts();
+
+        boolean running = true;
+        while (running) {
+
+            System.out.println("\n=== MyContacts Menu ===");
+            System.out.println("1. Register");
+            System.out.println("2. Login");
+            System.out.println("3. Exit");
+            System.out.print("Choose an option: ");
+
+            switch (sc.nextLine()) {
+                case "1" -> registerUser(sc);
+                case "2" -> loginUser(sc);
+                case "3" -> {
+                    FilePersistence.saveUsers(userStore);
+                    FilePersistence.saveContacts(contacts);
+                    running = false;
+                    System.out.println("Exiting MyContacts. Goodbye!");
+                }
+                default -> System.out.println("Invalid choice. Try again.");
+            }
+        }
+        sc.close();
+    }
+
+    // ================= Registration =================
+    private static void registerUser(Scanner sc) {
+        try {
+            System.out.println("\n=== User Registration ===");
+
+            System.out.print("Enter email: ");
+            String email = sc.nextLine();
+
+            System.out.print("Enter password: ");
+            String password = sc.nextLine();
+
+            System.out.print("Enter name: ");
+            String name = sc.nextLine();
+
+            System.out.print("Enter phone number: ");
+            String phone = sc.nextLine();
+
+            System.out.print("Enter user type (free/premium): ");
+            String type = sc.nextLine();
+
+            UserBuilder builder = new UserBuilder()
+                    .setEmail(email)
+                    .setPassword(password)
+                    .setName(name)
+                    .setPhoneNumber(phone);
+
+            if (type.equalsIgnoreCase("premium")) {
+                System.out.print("Enter subscription plan: ");
+                builder.setSubscriptionPlan(sc.nextLine());
+            }
+
+            User user = UserFactory.createUser(type, builder);
+            userStore.put(user.getEmail(), user);
+
+            System.out.println("Registration successful: " + user);
+            FilePersistence.saveUsers(userStore);
+
+        } catch (Exception e) { System.out.println("Error: " + e.getMessage()); }
+    }
+
+    // ================= Login =================
+    private static void loginUser(Scanner sc) {
+
+        System.out.println("\n=== User Login ===");
+
+        System.out.print("Enter email: ");
+        String email = sc.nextLine();
+
+        System.out.print("Enter password: ");
+        String pass = sc.nextLine();
+
+        AuthenticationStrategy auth = new BasicAuth(userStore);
+        Optional<User> loggedIn = auth.authenticate(email, pass);
+
+        if (loggedIn.isPresent()) {
+            SessionManager.getInstance().login(loggedIn.get());
+            System.out.println("Welcome, " + loggedIn.get().getName() + "!");
+            userSubMenu(sc, loggedIn.get());
+        } else {
+            System.out.println("Invalid credentials.");
+        }
+    }
+
+    // ================= User Sub Menu =================
+    private static void userSubMenu(Scanner sc, User user) {
+        boolean loop = true;
+
+        while (loop) {
+            System.out.println("\n=== User Menu ===");
+            System.out.println("1. Profile Management");
+            System.out.println("2. Contact Management");
+            System.out.println("3. Logout");
+            System.out.print("Choose: ");
+
+            switch (sc.nextLine()) {
+                case "1" -> profileMenu(sc, user);
+                case "2" -> contactMenu(sc);
+                case "3" -> { SessionManager.getInstance().logout(); loop = false; }
+                default -> System.out.println("Invalid choice.");
+            }
+        }
+    }
+
+    // ================= Profile Menu =================
+    private static void profileMenu(Scanner sc, User user) {
+
+        boolean loop = true;
+
+        while (loop) {
+            System.out.println("\n=== Profile Management ===");
+            System.out.println("1. Change Name");
+            System.out.println("2. Change Phone");
+            System.out.println("3. Change Password");
+            System.out.println("4. Change Preferences");
+            System.out.println("5. Back");
+            System.out.print("Choose: ");
+
+            switch (sc.nextLine()) {
+                case "1" -> {
+                    System.out.print("Enter new name: ");
+                    new ChangeNameCommand(sc.nextLine()).execute(user);
+                }
+                case "2" -> {
+                    System.out.print("Enter new phone: ");
+                    new ChangePhoneCommand(sc.nextLine()).execute(user);
+                }
+                case "3" -> {
+                    System.out.print("Enter new password: ");
+                    new ChangePasswordCommand(sc.nextLine()).execute(user);
+                }
+                case "4" -> {
+                    System.out.print("Enter preferences: ");
+                    new ChangePreferencesCommand(sc.nextLine()).execute(user);
+                }
+                case "5" -> loop = false;
+                default -> System.out.println("Invalid choice.");
+            }
+
+            FilePersistence.saveUsers(userStore);
+        }
+    }
+
+    // ================= Contact Menu =================
+    private static void contactMenu(Scanner sc) {
+        boolean loop = true;
+
+        while (loop) {
+
+            System.out.println("\n=== Contact Management ===");
+            System.out.println("1. Create Contact");
+            System.out.println("2. View All Contacts");
+            System.out.println("3. View Contact Details");
+            System.out.println("4. Edit Contact");
+            System.out.println("5. Delete Contact");
+            System.out.println("6. Search Contacts");
+            System.out.println("7. Manage Tags");
+            System.out.println("8. Back");
+            System.out.print("Choose: ");
+
+            switch (sc.nextLine()) {
+                case "1" -> createContact(sc);
+                case "2" -> viewContacts();
+                case "3" -> viewContactDetails(sc);
+                case "4" -> editContact(sc);
+                case "5" -> deleteContact(sc);
+                case "6" -> searchContacts(sc);
+                case "7" -> tagMenu(sc);
+                case "8" -> loop = false;
+                default -> System.out.println("Invalid choice.");
+            }
+        }
+    }
+
+    // ================= Tag Menu (UC‑11 + UC‑12) =================
+    private static void tagMenu(Scanner sc) {
+
+        boolean loop = true;
+
+        while (loop) {
+            System.out.println("\n=== Tag Management ===");
+            System.out.println("1. Create Tag");
+            System.out.println("2. Assign Single Tag");
+            System.out.println("3. Remove Single Tag");
+            System.out.println("4. Assign Multiple Tags");
+            System.out.println("5. Remove Multiple Tags");
+            System.out.println("6. View Contact Tags");
+            System.out.println("7. Back");
+            System.out.print("Choose: ");
+
+            switch (sc.nextLine()) {
+                case "1" -> createTag(sc);
+                case "2" -> assignTag(sc);
+                case "3" -> removeTag(sc);
+                case "4" -> assignMultipleTags(sc);
+                case "5" -> removeMultipleTags(sc);
+                case "6" -> viewContactTags(sc);
+                case "7" -> loop = false;
+                default -> System.out.println("Invalid choice.");
+            }
+        }
+    }
+
+    // ================= Tag Methods (UC‑12) =================
+
+    private static void createTag(Scanner sc) {
+        System.out.print("Enter tag name: ");
+        Tag t = TagFactory.getTag(sc.nextLine());
+        System.out.println("Tag created: " + t);
+    }
+
+    private static void assignTag(Scanner sc) {
+        Contact c = findContactByName(sc);
+        if (c == null) return;
+
+        System.out.print("Enter tag: ");
+        Tag t = TagFactory.getTag(sc.nextLine());
+
+        c.addTag(t);
+        FilePersistence.saveContacts(contacts);
+
+        System.out.println("Assigned tag: " + t);
+    }
+
+    private static void removeTag(Scanner sc) {
+        Contact c = findContactByName(sc);
+        if (c == null) return;
+
+        System.out.print("Enter tag to remove: ");
+        Tag t = TagFactory.getTag(sc.nextLine());
+
+        if (c.getTags().contains(t)) {
+            c.removeTag(t);
+            FilePersistence.saveContacts(contacts);
+            System.out.println("Tag removed.");
+        } else {
+            System.out.println("Contact does not have this tag.");
+        }
+    }
+
+    private static void assignMultipleTags(Scanner sc) {
+        Contact c = findContactByName(sc);
+        if (c == null) return;
+
+        System.out.print("Enter comma-separated tags: ");
+        String[] tags = sc.nextLine().split(",");
+
+        for (String t : tags) c.addTag(TagFactory.getTag(t.trim()));
+
+        FilePersistence.saveContacts(contacts);
+
+        System.out.println("Updated tags: " + c.getTags());
+    }
+
+    private static void removeMultipleTags(Scanner sc) {
+        Contact c = findContactByName(sc);
+        if (c == null) return;
+
+        System.out.print("Enter comma-separated tags to remove: ");
+        String[] tags = sc.nextLine().split(",");
+
+        for (String t : tags) c.removeTag(TagFactory.getTag(t.trim()));
+
+        FilePersistence.saveContacts(contacts);
+
+        System.out.println("Updated tags: " + c.getTags());
+    }
+
+    private static void viewContactTags(Scanner sc) {
+        Contact c = findContactByName(sc);
+        if (c != null) {
+            System.out.println("Tags: " + c.getTags());
+        }
+    }
+
+    private static Contact findContactByName(Scanner sc) {
+        System.out.print("Enter contact name: ");
+        String name = sc.nextLine();
+
+        return contacts.stream()
+                .filter(ct -> ct.getName().equalsIgnoreCase(name))
+                .findFirst()
+                .orElseGet(() -> {
+                    System.out.println("Contact not found.");
+                    return null;
+                });
+    }
+
+    // ================= Search Contacts (UC‑09) =================
+    private static void searchContacts(Scanner sc) {
+
+        System.out.println("\n=== Search Contacts ===");
+
+        System.out.print("Name keyword: ");
+        String nameK = sc.nextLine();
+
+        System.out.print("Phone keyword: ");
+        String phoneK = sc.nextLine();
+
+        System.out.print("Email keyword: ");
+        String emailK = sc.nextLine();
+
+        FilterHandler chain = null, head = null;
+
+        if (!nameK.isEmpty()) {
+            head = new SearchFilter(new NameCriteria(nameK));
+            chain = head;
+        }
+        if (!phoneK.isEmpty()) {
+            FilterHandler f = new SearchFilter(new PhoneCriteria(phoneK));
+            if (head == null) head = f;
+            else chain = chain.setNext(f);
+        }
+        if (!emailK.isEmpty()) {
+            FilterHandler f = new SearchFilter(new EmailCriteria(emailK));
+            if (head == null) head = f;
+            else chain = chain.setNext(f);
+        }
+
+        if (head == null) {
+            System.out.println("No filters applied.");
+            return;
+        }
+
+        List<Contact> results = head.filter(contacts);
+
+        System.out.println("\n=== Results ===");
+        if (results.isEmpty()) System.out.println("No matching contacts.");
+        else results.forEach(System.out::println);
+    }
+
+    // ================= CRUD =================
+
+    private static void createContact(Scanner sc) {
+
+        System.out.println("\n=== Create Contact ===");
+
+        System.out.print("Type (person/organization): ");
+        String type = sc.nextLine();
+
+        ContactBuilder builder = new ContactBuilder();
+
+        System.out.print("Name: ");
+        builder.setName(sc.nextLine());
+
+        System.out.print("Phone (optional): ");
+        String phone = sc.nextLine();
+        if (!phone.isEmpty()) builder.addPhoneNumber(phone);
+
+        System.out.print("Email (optional): ");
+        String email = sc.nextLine();
+        if (!email.isEmpty()) builder.addEmail(email);
+
+        if (type.equalsIgnoreCase("organization")) {
+            System.out.print("Organization name: ");
+            builder.setOrganizationName(sc.nextLine());
+        }
+
+        Contact c = ContactFactory.createContact(type, builder);
+        contacts.add(c);
+
+        FilePersistence.saveContacts(contacts);
+        System.out.println("Contact created: " + c);
+    }
+
+    private static void deleteContact(Scanner sc) {
+
+        Contact c = findContactByName(sc);
+        if (c == null) return;
+
+        System.out.print("Confirm delete? (y/n): ");
+        if (sc.nextLine().equalsIgnoreCase("y")) {
+
+            ContactGroup group = new ContactGroup(List.of(c));
+            group.deleteAll(contacts);
+
+            FilePersistence.saveContacts(contacts);
+            System.out.println("Contact deleted.");
+        }
+    }
+
+    private static void editContact(Scanner sc) {
+
+        Contact c = findContactByName(sc);
+        if (c == null) return;
+
+        System.out.println("\n=== Edit Contact ===");
+        System.out.println("1. Change Name");
+        System.out.println("2. Change Phone (not implemented)");
+        System.out.println("3. Change Email (not implemented)");
+        System.out.print("Choose: ");
+
+        try {
+            ContactMemento oldS = null;
+
+            if (sc.nextLine().equals("1")) {
+                System.out.print("New name: ");
+                oldS = new EditNameCommand(sc.nextLine()).execute(c);
+            }
+
+            FilePersistence.saveContacts(contacts);
+            System.out.println("Updated: " + c);
+
+            System.out.print("Undo change? (y/n): ");
+            if (sc.nextLine().equalsIgnoreCase("y") && oldS != null) {
+                oldS.restore(c);
+                FilePersistence.saveContacts(contacts);
+                System.out.println("Undo complete: " + c);
+            }
+
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
+    private static void viewContactDetails(Scanner sc) {
+
+        Contact c = findContactByName(sc);
+        if (c != null) {
+            ContactFormatter f = new ContactFormatter(new ContactView(c));
+            System.out.println(f.format());
+        }
+    }
+
+    private static void viewContacts() {
+
+        System.out.println("\n=== All Contacts ===");
+        contacts.forEach(System.out::println);
+    }
 }
